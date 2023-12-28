@@ -1,0 +1,8 @@
+# Copyright (c) 2019 Nordic Semiconductor
+# SPDX-License-Identifier: Apache-2.0
+
+config RT_CONFIG
+	bool "Enable run time configuration macros with NVS storage"
+	depends on NVS
+	help
+	   Enable run time configuration macros with NVS storage
