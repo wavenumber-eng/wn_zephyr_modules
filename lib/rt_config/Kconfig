@@ -1,6 +1,8 @@
 config RT_CONFIG
 	bool "Enable run time configuration macros with NVS storage"
-	depends on NVS
-	depends on SHELL
+	select NVS
+	select FLASH
+	select FLASH_PAGE_LAYOUT
+	select SHELL
 	help
 	   Enable run time configuration macros with NVS storage

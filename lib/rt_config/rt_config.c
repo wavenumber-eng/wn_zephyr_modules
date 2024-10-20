@@ -3,7 +3,6 @@
 #include <zephyr/sys/iterable_sections.h>
 #include "stdio.h"
 #include <zephyr/sys/printk.h>
-#include "rt_config.h"
 #include <zephyr/init.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/drivers/flash.h>
@@ -12,7 +11,7 @@
 #include <zephyr/sys/crc.h>
 #include <zephyr/shell/shell.h>
 #include <stdlib.h>
-#include <cJSON.h>
+#include <rt_config.h>
 
 #define NVS_PARTITION storage_partition
 #define NVS_PARTITION_DEVICE FIXED_PARTITION_DEVICE(NVS_PARTITION)
@@ -90,7 +89,7 @@ bool rt_config_get_value_string(struct rt_config_item *ci, char *ValueString, ui
 
     case RT_CONFIG_DATA_TYPE_FLOAT32:
         V.float_Value = *((float *)ci->Value);
-        snprintf(&ValueString[0], CONFIG_MAX_VALUE_STRING_LENGTH, "%f", V.float_Value);
+        snprintf(&ValueString[0], CONFIG_MAX_VALUE_STRING_LENGTH, "%f", (double)V.float_Value);
         break;
     }
 
@@ -491,108 +490,64 @@ SHELL_CMD_REGISTER(wipe, NULL, "wipes runtime configuration", rt_config_wipe_han
 
 void OutputParameterError(const struct shell *shell, char *ErrorString)
 {
-
-    cJSON *Err = cJSON_CreateObject();
-
-    cJSON_AddStringToObject(Err, "ObjID", "Parameter");
-    cJSON_AddStringToObject(Err, "Result", ErrorString);
-
-    char *string = NULL;
-
-    string = cJSON_Print(Err);
-    shell_fprintf(shell, SHELL_NORMAL, "\x02");
-    shell_fprintf(shell, SHELL_NORMAL, "%s", string);
-    shell_fprintf(shell, SHELL_NORMAL, "\x03\r\n");
-
-    cJSON_free(string);
-    cJSON_Delete(Err);
+    shell_fprintf(shell, SHELL_NORMAL, "%s", ErrorString);
 }
 
 void get_single(const struct shell *shell, char *Param)
 {
+    char ValueString[CONFIG_RT_KEY_VALUE_MAX_LENGTH];
+
     struct rt_config_item *ci = NULL;
 
     ci = rt_config_get_config_item(Param);
 
-    if (ci == NULL)
-    {
-        OutputParameterError(shell, "Parameter Not Found");
-    }
-    else
-    {
-        char ValueString[CONFIG_RT_KEY_VALUE_MAX_LENGTH];
+    rt_config_get_value_string(ci, ValueString, CONFIG_MAX_VALUE_STRING_LENGTH);
 
-        cJSON *Result = cJSON_CreateObject();
+    shell_fprintf(shell, SHELL_NORMAL,"\r\n");
+    shell_fprintf(shell, SHELL_NORMAL,  "Name : %s\r\n", ci->ConfigItemName);
+    shell_fprintf(shell, SHELL_NORMAL,  "    Description : %s\r\n", ci->DescriptionString);
+    shell_fprintf(shell, SHELL_NORMAL,  "    Value : %s\r\n", ValueString);
+    shell_fprintf(shell, SHELL_NORMAL,  "    Min : %s\r\n", ci->Minimum);
+    shell_fprintf(shell, SHELL_NORMAL,  "    Max : %s\r\n", ci->Maximum);
+    shell_fprintf(shell, SHELL_NORMAL,  "    Default :%s\r\n", ci->Default);
+    shell_fprintf(shell, SHELL_NORMAL,"\r\n");
 
-        rt_config_get_value_string(ci, ValueString, CONFIG_MAX_VALUE_STRING_LENGTH);
-
-        cJSON_AddStringToObject(Result, "ObjID", "Parameter");
-        cJSON_AddStringToObject(Result, "Result", "OK");
-
-        cJSON *Parameters;
-
-        Parameters = cJSON_AddArrayToObject(Result, "Parameters");
-
-        cJSON *Parameter = cJSON_CreateObject();
-
-        cJSON_AddStringToObject(Parameter, "Name", ci->ConfigItemName);
-        //  cJSON_AddStringToObject(Parameter, "Description", ci->DescriptionString);
-        cJSON_AddStringToObject(Parameter, "Value", ValueString);
-        cJSON_AddStringToObject(Parameter, "Min", ci->Minimum);
-        cJSON_AddStringToObject(Parameter, "Max", ci->Maximum);
-        cJSON_AddStringToObject(Parameter, "Default", ci->Default);
-
-        cJSON_AddItemToArray(Parameters, Parameter);
-
-        char *string = NULL;
-
-        string = cJSON_Print(Result);
-        shell_fprintf(shell, SHELL_NORMAL, "\x02");
-        shell_fprintf(shell, SHELL_NORMAL, "%s", string);
-        shell_fprintf(shell, SHELL_NORMAL, "\x03\r\n");
-        cJSON_free(string);
-        cJSON_Delete(Result);
-    }
 }
 
 void get_all(const struct shell *shell)
 {
     char ValueString[CONFIG_RT_KEY_VALUE_MAX_LENGTH];
 
-    cJSON *Result = cJSON_CreateObject();
 
-    cJSON_AddStringToObject(Result, "ObjID", "Parameter");
+    shell_fprintf(shell, SHELL_NORMAL,"\r\n");
 
-    cJSON_AddStringToObject(Result, "Result", "OK");
-
-    cJSON *Parameters;
-
-    Parameters = cJSON_AddArrayToObject(Result, "Parameters");
+    shell_fprintf(shell, SHELL_NORMAL,"Run-time configuration parameters\r\n");
+    shell_fprintf(shell, SHELL_NORMAL,"-------------------------------------------\r\n");
+    shell_fprintf(shell, SHELL_NORMAL,"\r\n");   
 
     STRUCT_SECTION_FOREACH(rt_config_item, ci)
     {
 
         rt_config_get_value_string(ci, ValueString, CONFIG_MAX_VALUE_STRING_LENGTH);
+        
+        shell_fprintf(shell, SHELL_NORMAL,"\r\n");
 
-        cJSON *Parameter = cJSON_CreateObject();
+        shell_fprintf(shell, SHELL_NORMAL,  "Name : ");
+        shell_fprintf(shell, SHELL_VT100_COLOR_GREEN,  "%s\r\n", ci->ConfigItemName);
 
-        cJSON_AddStringToObject(Parameter, "Name", ci->ConfigItemName);
-        // cJSON_AddStringToObject(Parameter, "Description", ci->DescriptionString);
-        cJSON_AddStringToObject(Parameter, "Value", ValueString);
-        cJSON_AddStringToObject(Parameter, "Min", ci->Minimum);
-        cJSON_AddStringToObject(Parameter, "Max", ci->Maximum);
-        cJSON_AddStringToObject(Parameter, "Default", ci->Default);
+        shell_fprintf(shell, SHELL_NORMAL,  "    Description : %s\r\n", ci->DescriptionString);
+        
+        shell_fprintf(shell, SHELL_NORMAL,  "    Value :");
+        shell_fprintf(shell, SHELL_VT100_COLOR_GREEN,  "%s\r\n", ValueString);
+        
+        shell_fprintf(shell, SHELL_NORMAL,  "    Min : %s\r\n", ci->Minimum);
+        shell_fprintf(shell, SHELL_NORMAL,  "    Max : %s\r\n", ci->Maximum);
+        shell_fprintf(shell, SHELL_NORMAL,  "    Default : %s\r\n", ci->Default);
 
-        cJSON_AddItemToArray(Parameters, Parameter);
     }
 
-    char *string = NULL;
-    string = cJSON_Print(Result);
-    shell_fprintf(shell, SHELL_NORMAL, "\x02");
-    shell_fprintf(shell, SHELL_NORMAL, "%s", string);
-    shell_fprintf(shell, SHELL_NORMAL, "\x03\r\n");
-    cJSON_free(string);
-    cJSON_Delete(Result);
+    shell_fprintf(shell, SHELL_NORMAL,"\r\n");
+
 }
 
 int get_handler(const struct shell *shell,
