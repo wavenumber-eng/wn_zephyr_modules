@@ -501,16 +501,22 @@ void get_single(const struct shell *shell, char *Param)
 
     ci = rt_config_get_config_item(Param);
 
-    rt_config_get_value_string(ci, ValueString, CONFIG_MAX_VALUE_STRING_LENGTH);
 
+    rt_config_get_value_string(ci, ValueString, CONFIG_MAX_VALUE_STRING_LENGTH);
+        
     shell_fprintf(shell, SHELL_NORMAL,"\r\n");
-    shell_fprintf(shell, SHELL_NORMAL,  "Name : %s\r\n", ci->ConfigItemName);
+
+    shell_fprintf(shell, SHELL_NORMAL,  "Name : ");
+    shell_fprintf(shell, SHELL_VT100_COLOR_GREEN,  "%s\r\n", ci->ConfigItemName);
+
     shell_fprintf(shell, SHELL_NORMAL,  "    Description : %s\r\n", ci->DescriptionString);
-    shell_fprintf(shell, SHELL_NORMAL,  "    Value : %s\r\n", ValueString);
+       
+    shell_fprintf(shell, SHELL_NORMAL,  "    Value : ");
+    shell_fprintf(shell, SHELL_VT100_COLOR_GREEN,  "%s\r\n", ValueString);
+        
     shell_fprintf(shell, SHELL_NORMAL,  "    Min : %s\r\n", ci->Minimum);
     shell_fprintf(shell, SHELL_NORMAL,  "    Max : %s\r\n", ci->Maximum);
-    shell_fprintf(shell, SHELL_NORMAL,  "    Default :%s\r\n", ci->Default);
-    shell_fprintf(shell, SHELL_NORMAL,"\r\n");
+    shell_fprintf(shell, SHELL_NORMAL,  "    Default : %s\r\n", ci->Default);
 
 }
 
@@ -537,7 +543,7 @@ void get_all(const struct shell *shell)
 
         shell_fprintf(shell, SHELL_NORMAL,  "    Description : %s\r\n", ci->DescriptionString);
         
-        shell_fprintf(shell, SHELL_NORMAL,  "    Value :");
+        shell_fprintf(shell, SHELL_NORMAL,  "    Value : ");
         shell_fprintf(shell, SHELL_VT100_COLOR_GREEN,  "%s\r\n", ValueString);
         
         shell_fprintf(shell, SHELL_NORMAL,  "    Min : %s\r\n", ci->Minimum);
