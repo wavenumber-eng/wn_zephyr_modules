@@ -1,7 +1,2 @@
-#
-# Copyright (c) 2021 Nordic Semiconductor ASA
-#
-# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
-#
 
-rsource "rt_config/zephyr/Kconfig"
+rsource "lib/Kconfig"

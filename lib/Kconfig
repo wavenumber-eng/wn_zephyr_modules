@@ -1,0 +1,5 @@
+menu "Custom libraries and modules"
+
+rsource "rt_config/Kconfig"
+
+endmenu
