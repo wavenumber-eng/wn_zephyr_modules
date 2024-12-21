@@ -1,0 +1,10 @@
+config DATA_BUF
+	bool "Enable data buffers"
+	help
+	   Enable data buffers
+
+config DATA_BUF_POOL_BYTES
+	int "Size of the data buffer pool in bytes"
+	default 10240
+	help
+	   Size of the data buffer pool in bytes

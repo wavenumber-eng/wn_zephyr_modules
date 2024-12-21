@@ -1,0 +1,5 @@
+if(CONFIG_DATA_BUF)
+    zephyr_library()
+    zephyr_include_directories(./)
+    zephyr_library_sources(data_buf.c)
+endif()

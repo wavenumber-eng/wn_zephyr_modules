@@ -1,5 +1,6 @@
 menu "Custom libraries and modules"
 
 rsource "rt_config/Kconfig"
+rsource "data_buf/Kconfig"
 
 endmenu
