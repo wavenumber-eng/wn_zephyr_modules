@@ -64,6 +64,8 @@ struct rt_config_item
 #define CONFIGURATION_ITEM_OUT_OF_RANGE  -2
 #define CONFIGURATION_TYPE_UNKNOWN		 -3
 
+extern int rt_config_init();
+
 void rt_config_export();
 struct rt_config_item * rt_config_get_config_item(char * Name);
 bool rt_config_get_value_string(struct rt_config_item *ci, char *ValueString, uint32_t Len);

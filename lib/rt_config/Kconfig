@@ -1,4 +1,8 @@
 config RT_CONFIG
+	bool "Enable RT configurations"
+	
+
+config RT_CONFIG_NVS
 	bool "Enable run time configuration macros with NVS storage"
 	select NVS
 	select FLASH
@@ -6,3 +10,17 @@ config RT_CONFIG
 	select SHELL
 	help
 	   Enable run time configuration macros with NVS storage
+
+config RT_CONFIG_USE_FILE
+	bool "RT Configurations stored in a file"
+	select USB_DEVICE_STACK
+	select USB_MASS_STORAGE
+	select RT_CONFIG
+	imply DISK_DRIVER_FLASH
+	imply FILE_SYSTEM
+	select FAT_FILESYSTEM_ELM
+	
+	help
+	   RT Configurations stored in a file
+	   This option is used to store the RT Configurations in a file.
+	   The file is stored in the USB mass storage device

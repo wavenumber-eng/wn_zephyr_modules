@@ -5,9 +5,10 @@ if(CONFIG_RT_CONFIG)
 
     zephyr_library()
 
-
-
     zephyr_library_sources(rt_config.c)
 
-endif()
+    if(CONFIG_RT_CONFIG_USE_FILE)
+        zephyr_library_sources(rt_file.c)
+    endif()
 
+endif()

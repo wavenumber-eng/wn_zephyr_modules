@@ -13,9 +13,16 @@
 #include <stdlib.h>
 #include <rt_config.h>
 
+#if defined(RT_CONFIG_USE_FILE)
+#include "rt_file.h"
+#endif
+
+#if defined(CONFIG_RT_CONFIG_NVS)
 #define NVS_PARTITION storage_partition
 #define NVS_PARTITION_DEVICE FIXED_PARTITION_DEVICE(NVS_PARTITION)
 #define NVS_PARTITION_OFFSET FIXED_PARTITION_OFFSET(NVS_PARTITION)
+#endif
+
 
 LOG_MODULE_REGISTER(rt_config, LOG_LEVEL_INF);
 
@@ -249,6 +256,7 @@ static char KeyValue[CONFIG_RT_KEY_VALUE_MAX_LENGTH + 2]; // 1st 2 bytes will be
 char *rt_config_slot_in_use(uint32_t Slot)
 {
 
+#if defined(CONFIG_RT_CONFIG_NVS)
     int32_t ReadLen = nvs_read(&fs, CONFIG_RT_ITEM_BASE + Slot, KeyValue, sizeof(KeyValue));
 
     if ((ReadLen > 4) &&
@@ -270,6 +278,7 @@ char *rt_config_slot_in_use(uint32_t Slot)
             }
         }
     }
+#endif
 
     return NULL;
 }
@@ -314,6 +323,7 @@ char *rt_config_get_key_value(char *KeyIn, uint16_t *Slot)
     return NULL;
 }
 
+
 int32_t rt_config_get_empty_slot(uint16_t *Slot)
 {
     for (uint16_t i = 0; i < CONFIG_RT_MAX_ITEMS; i++)
@@ -328,8 +338,10 @@ int32_t rt_config_get_empty_slot(uint16_t *Slot)
     return -ENOMEM;
 }
 
+
 int32_t rt_config_store_key_value_at_slot(char *KeyIn, char *ValueIn, uint16_t Slot)
 {
+#if defined(CONFIG_RT_CONFIG_NVS)
     int Len = snprintf(&KeyValue[2], CONFIG_RT_KEY_VALUE_MAX_LENGTH, "%s=%s", KeyIn, ValueIn);
 
     uint16_t CRC16 = crc16_ccitt(0x1234, &KeyValue[2], Len + 1);
@@ -339,6 +351,7 @@ int32_t rt_config_store_key_value_at_slot(char *KeyIn, char *ValueIn, uint16_t S
     *CRC = CRC16;
 
     Len += 3; // CRC + null terminator
+
 
     int32_t err = nvs_write(&fs, (uint16_t)Slot + CONFIG_RT_ITEM_BASE, KeyValue, Len);
 
@@ -360,6 +373,9 @@ int32_t rt_config_store_key_value_at_slot(char *KeyIn, char *ValueIn, uint16_t S
     }
 
     return err;
+#endif 
+
+return 0;
 }
 
 int32_t rt_config_store_key_value(char *KeyIn, char *ValueIn)
@@ -410,8 +426,10 @@ void rt_config_load_values()
     }
 }
 
-static int rt_config_init()
+int rt_config_init()
 {
+
+#if defined(CONFIG_RT_CONFIG_NVS)
     int rc = 0;
     struct flash_pages_info info;
 
@@ -452,7 +470,17 @@ static int rt_config_init()
 
     rt_config_show_current_values();
 
+
+#elif defined(CONFIG_RT_CONFIG_USE_FILE)
+    rt_config_load_defaults();
+
+    rt_file__init();
+    rt_file__import();
+    rt_config_show_current_values();
+#endif
+
     return 0;
+
 }
 
 struct rt_config_item *rt_config_get_config_item(char *Name)
@@ -469,7 +497,7 @@ struct rt_config_item *rt_config_get_config_item(char *Name)
     return NULL;
 }
 
-SYS_INIT(rt_config_init, APPLICATION, 0);
+//SYS_INIT(rt_config_init, APPLICATION, 0);
 
 static int rt_config_wipe_handler(const struct shell *shell,
                                   size_t argc,
@@ -478,11 +506,12 @@ static int rt_config_wipe_handler(const struct shell *shell,
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
 
+#if defined(CONFIG_RT_CONFIG_NVS)
     for (int i = 0; i < CONFIG_RT_MAX_ITEMS; i++)
     {
         nvs_delete(&fs, CONFIG_RT_ITEM_BASE + i);
     }
-
+#endif
     return 0;
 }
 
@@ -609,6 +638,8 @@ SHELL_CMD_REGISTER(set, NULL, "sets a config parameter", set_handler);
 
 void rt_config_export()
 {
+
+#if defined(CONFIG_RT_CONFIG_NVS)
     char ValueString[CONFIG_MAX_VALUE_STRING_LENGTH];
 
     STRUCT_SECTION_FOREACH(rt_config_item, ci)
@@ -616,6 +647,9 @@ void rt_config_export()
         rt_config_get_value_string(ci, ValueString, CONFIG_MAX_VALUE_STRING_LENGTH);
         rt_config_store_key_value(ci->ConfigItemName, ValueString);
     }
+#elif defined(CONFIG_RT_CONFIG_USE_FILE)
+    rt_file__export();
+#endif
 }
 
 int save_handler(const struct shell *shell, int32_t argc, char **argv)
