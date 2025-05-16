@@ -11,4 +11,8 @@ if(CONFIG_RT_CONFIG)
         zephyr_library_sources(rt_file.c)
     endif()
 
+    if(CONFIG_RT_CONFIG_USE_NVS)
+        zephyr_library_sources(rt_nvs.c)
+    endif()
+
 endif()

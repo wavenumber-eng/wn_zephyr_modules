@@ -20,6 +20,7 @@
     },
     "peacock.color": "#471434",
     "files.associations": {
-        "rt_config.h": "c"
+        "rt_config.h": "c",
+        "rt_nvs.h": "c"
     }
 }

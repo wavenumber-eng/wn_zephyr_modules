@@ -1,43 +1,27 @@
 
 #include <zephyr/kernel.h>
 #include <zephyr/sys/iterable_sections.h>
-#include "stdio.h"
 #include <zephyr/sys/printk.h>
 #include <zephyr/init.h>
 #include <zephyr/logging/log.h>
-#include <zephyr/drivers/flash.h>
-#include <zephyr/storage/flash_map.h>
-#include <zephyr/fs/nvs.h>
-#include <zephyr/sys/crc.h>
-#include <zephyr/shell/shell.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <zephyr/shell/shell.h>
 #include <rt_config.h>
 
-#if defined(RT_CONFIG_USE_FILE)
+#if defined(CONFIG_RT_CONFIG_USE_FILE)
 #include "rt_file.h"
 #endif
 
-#if defined(CONFIG_RT_CONFIG_NVS)
-#define NVS_PARTITION storage_partition
-#define NVS_PARTITION_DEVICE FIXED_PARTITION_DEVICE(NVS_PARTITION)
-#define NVS_PARTITION_OFFSET FIXED_PARTITION_OFFSET(NVS_PARTITION)
+#if defined(CONFIG_RT_CONFIG_USE_NVS)
+#include "rt_nvs.h"
 #endif
 
 
 LOG_MODULE_REGISTER(rt_config, LOG_LEVEL_INF);
 
-typedef union
-{
-    uint8_t uint8_t_Value;
-    uint16_t uint16_t_Value;
-    uint32_t uint32_t_Value;
-    int8_t int8_t_Value;
-    int16_t int16_t_Value;
-    int32_t int32_t_Value;
-    float float_Value;
 
-} ValueHolder;
-
+// Function to get the value string of a configuration item
 bool rt_config_get_value_string(struct rt_config_item *ci, char *ValueString, uint32_t Len)
 {
 
@@ -58,10 +42,8 @@ bool rt_config_get_value_string(struct rt_config_item *ci, char *ValueString, ui
         break;
 
     case RT_CONFIG_DATA_TYPE_STRING:
-
         snprintf(&ValueString[0], Len,
                  "%s", (char *)ci->Value);
-
         break;
 
     case RT_CONFIG_DATA_TYPE_UINT8:
@@ -103,6 +85,7 @@ bool rt_config_get_value_string(struct rt_config_item *ci, char *ValueString, ui
     return Result;
 }
 
+// Function to print the current values of all configuration items
 void rt_config_show_current_values()
 {
     char ValueString[CONFIG_MAX_VALUE_STRING_LENGTH];
@@ -116,6 +99,8 @@ void rt_config_show_current_values()
     }
 }
 
+
+// Function to load a configuration item with a value, value is a string
 int32_t rt_config_load_with_value(const struct rt_config_item *NextConfigurationItem, void *value)
 {
     ValueHolder MyValueHolder;
@@ -249,155 +234,8 @@ int32_t rt_config_load_with_value(const struct rt_config_item *NextConfiguration
     return Result;
 }
 
-static struct nvs_fs fs;
 
-static char KeyValue[CONFIG_RT_KEY_VALUE_MAX_LENGTH + 2]; // 1st 2 bytes will be CRC
-
-char *rt_config_slot_in_use(uint32_t Slot)
-{
-
-#if defined(CONFIG_RT_CONFIG_NVS)
-    int32_t ReadLen = nvs_read(&fs, CONFIG_RT_ITEM_BASE + Slot, KeyValue, sizeof(KeyValue));
-
-    if ((ReadLen > 4) &&
-        (ReadLen <= sizeof(KeyValue)))
-    {
-        uint16_t CRC16 = crc16_ccitt(0x1234, &KeyValue[2], ReadLen - 2);
-
-        uint16_t *CRC16_Check = (uint16_t *)(&KeyValue[0]);
-
-        if ((*CRC16_Check == CRC16) && (KeyValue[ReadLen - 1] == 0))
-        {
-
-            for (int i = 2; i < ReadLen; i++)
-            {
-                if (KeyValue[i] == '=')
-                {
-                    return &KeyValue[2];
-                }
-            }
-        }
-    }
-#endif
-
-    return NULL;
-}
-
-char KVP_temp[CONFIG_RT_KEY_VALUE_MAX_LENGTH];
-
-char *rt_config_get_key_value(char *KeyIn, uint16_t *Slot)
-{
-    char *Key = 0;
-    char *Value = 0;
-    char *KVP = 0;
-
-    for (int i = 0; i < CONFIG_RT_MAX_ITEMS; i++)
-    {
-
-        if ((KVP = rt_config_slot_in_use(i)))
-        {
-
-            // strtok will crush base64 values.  Brute force it.
-
-            strcpy(KVP_temp, KVP);
-
-            for (int i = 0; i < strlen(KVP_temp); i++)
-            {
-                if (KVP_temp[i] == '=')
-                {
-                    KVP_temp[i] = 0;
-                }
-
-                Key = &KVP_temp[0];
-                Value = &KVP_temp[i + 1];
-            }
-
-            if ((Key != NULL) && (Value != NULL) && (strcmp(KeyIn, Key) == 0))
-            {
-                *Slot = i;
-                return Value;
-            }
-        }
-    }
-
-    return NULL;
-}
-
-
-int32_t rt_config_get_empty_slot(uint16_t *Slot)
-{
-    for (uint16_t i = 0; i < CONFIG_RT_MAX_ITEMS; i++)
-    {
-        if (rt_config_slot_in_use(i) == NULL)
-        {
-            *Slot = i;
-            return (int32_t)i;
-        }
-    }
-
-    return -ENOMEM;
-}
-
-
-int32_t rt_config_store_key_value_at_slot(char *KeyIn, char *ValueIn, uint16_t Slot)
-{
-#if defined(CONFIG_RT_CONFIG_NVS)
-    int Len = snprintf(&KeyValue[2], CONFIG_RT_KEY_VALUE_MAX_LENGTH, "%s=%s", KeyIn, ValueIn);
-
-    uint16_t CRC16 = crc16_ccitt(0x1234, &KeyValue[2], Len + 1);
-
-    uint16_t *CRC = (uint16_t *)&KeyValue[0];
-
-    *CRC = CRC16;
-
-    Len += 3; // CRC + null terminator
-
-
-    int32_t err = nvs_write(&fs, (uint16_t)Slot + CONFIG_RT_ITEM_BASE, KeyValue, Len);
-
-    if (err < 0)
-    {
-        LOG_ERR("Error %i while trying to write key %s to slot %d", err, KeyIn, Slot);
-    }
-    else if (err == 0)
-    {
-        LOG_DBG("%s is unchanged at slot %d", KeyIn, Slot);
-    }
-    else if (err != Len)
-    {
-        LOG_DBG("%d of %d written to slot %d for key %s", err, Len, Slot, ValueIn);
-    }
-    else
-    {
-        LOG_DBG("%s=%s written to slot %d", KeyIn, ValueIn, Slot);
-    }
-
-    return err;
-#endif 
-
-return 0;
-}
-
-int32_t rt_config_store_key_value(char *KeyIn, char *ValueIn)
-{
-    uint16_t Slot = 0;
-
-    int32_t Err = 0;
-
-    if (rt_config_get_key_value(KeyIn, &Slot) == NULL)
-    {
-        Err = rt_config_get_empty_slot(&Slot);
-    }
-
-    if (Err < 0)
-    {
-        LOG_ERR("No more slots to store %s", KeyIn);
-        return -ENOMEM;
-    }
-
-    return rt_config_store_key_value_at_slot(KeyIn, ValueIn, Slot);
-}
-
+// Function load the default values for all configuration items
 void rt_config_load_defaults()
 {
     STRUCT_SECTION_FOREACH(rt_config_item, config_item)
@@ -406,83 +244,34 @@ void rt_config_load_defaults()
     }
 }
 
-void rt_config_load_values()
-{
-    char *Value;
-    uint16_t Slot;
 
-    STRUCT_SECTION_FOREACH(rt_config_item, config_item)
-    {
-        if ((Value = rt_config_get_key_value(config_item->ConfigItemName, &Slot)))
-        {
-            rt_config_load_with_value(config_item, Value);
-        }
-        else
-        {
-            LOG_INF("%s does not exist in storage.  Storing default.", config_item->ConfigItemName);
-
-            rt_config_store_key_value(config_item->ConfigItemName, config_item->Default);
-        }
-    }
-}
 
 int rt_config_init()
 {
-
-#if defined(CONFIG_RT_CONFIG_NVS)
-    int rc = 0;
-    struct flash_pages_info info;
-
-    fs.flash_device = NVS_PARTITION_DEVICE;
-    fs.offset = NVS_PARTITION_OFFSET;
-
-    rc = flash_get_page_info_by_offs(fs.flash_device, fs.offset, &info);
-
-    fs.sector_size = info.size;
-    fs.sector_count = 4U;
-
-    // rc = nvs_init(&fs, DT_CHOSEN_ZEPHYR_FLASH_CONTROLLER_LABEL);
-    rc = nvs_mount(&fs);
-
+#if defined(CONFIG_RT_CONFIG_USE_NVS)
     rt_config_load_defaults();
-
-    uint32_t SlotsInUse = 0;
-
-    char *KVP;
-    for (int i = 0; i < CONFIG_RT_MAX_ITEMS; i++)
-    {
-
-        if ((KVP = rt_config_slot_in_use(i)))
-        {
-            LOG_DBG("Slot %d:%s", i, KVP);
-
-            SlotsInUse++;
-        }
-        else
-        {
-            LOG_DBG("Slot %d:empty", i);
-        }
-    }
-
-    LOG_INF("%d / %d slots in use", SlotsInUse, CONFIG_RT_MAX_ITEMS);
-
-    rt_config_load_values();
-
-    rt_config_show_current_values();
-
+    rt_nvs__init();
+    rt_nvs__load_values();
 
 #elif defined(CONFIG_RT_CONFIG_USE_FILE)
     rt_config_load_defaults();
-
     rt_file__init();
     rt_file__import();
-    rt_config_show_current_values();
 #endif
 
+    rt_config_show_current_values();
+    
     return 0;
-
 }
 
+#if defined(CONFIG_RT_CONFIG_USE_NVS)
+SYS_INIT(rt_config_init, APPLICATION, 0);
+#endif
+
+
+
+
+// Function to get a configuration item by name
 struct rt_config_item *rt_config_get_config_item(char *Name)
 {
 
@@ -497,7 +286,10 @@ struct rt_config_item *rt_config_get_config_item(char *Name)
     return NULL;
 }
 
-//SYS_INIT(rt_config_init, APPLICATION, 0);
+
+/*
+* WHIPE COMMAND
+*/
 
 static int rt_config_wipe_handler(const struct shell *shell,
                                   size_t argc,
@@ -506,16 +298,22 @@ static int rt_config_wipe_handler(const struct shell *shell,
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
 
-#if defined(CONFIG_RT_CONFIG_NVS)
-    for (int i = 0; i < CONFIG_RT_MAX_ITEMS; i++)
-    {
-        nvs_delete(&fs, CONFIG_RT_ITEM_BASE + i);
-    }
+#if defined(CONFIG_RT_CONFIG_USE_NVS)
+    rt_nvs__wipe();
+
+#elif defined(CONFIG_RT_CONFIG_USE_FILE)
+    rt_file__wipe();
 #endif
     return 0;
 }
 
 SHELL_CMD_REGISTER(wipe, NULL, "wipes runtime configuration", rt_config_wipe_handler);
+
+
+
+/*
+* GET COMMAND
+*/
 
 void OutputParameterError(const struct shell *shell, char *ErrorString)
 {
@@ -607,6 +405,11 @@ int get_handler(const struct shell *shell,
 
 SHELL_CMD_REGISTER(get, NULL, "Gets a configuration item", get_handler);
 
+
+
+/*
+* SET COMMAND
+*/
 int set_handler(const struct shell *shell, int32_t argc, char **argv)
 {
     if (argc == 3)
@@ -636,20 +439,19 @@ int set_handler(const struct shell *shell, int32_t argc, char **argv)
 
 SHELL_CMD_REGISTER(set, NULL, "sets a config parameter", set_handler);
 
+
+/*
+* EXPORT COMMAND
+*/
 void rt_config_export()
 {
 
-#if defined(CONFIG_RT_CONFIG_NVS)
-    char ValueString[CONFIG_MAX_VALUE_STRING_LENGTH];
-
-    STRUCT_SECTION_FOREACH(rt_config_item, ci)
-    {
-        rt_config_get_value_string(ci, ValueString, CONFIG_MAX_VALUE_STRING_LENGTH);
-        rt_config_store_key_value(ci->ConfigItemName, ValueString);
-    }
+#if defined(CONFIG_RT_CONFIG_USE_NVS)
+    rt_nvs__export();
 #elif defined(CONFIG_RT_CONFIG_USE_FILE)
     rt_file__export();
 #endif
+
 }
 
 int save_handler(const struct shell *shell, int32_t argc, char **argv)

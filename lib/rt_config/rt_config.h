@@ -10,7 +10,19 @@
 #define CONFIG_RT_ITEM_BASE                 0x9000
 
 #define CONFIG_RT_KEY_VALUE_MAX_LENGTH      256
+#define NVS_PARTITION storage_partition
 
+typedef union
+{
+    uint8_t uint8_t_Value;
+    uint16_t uint16_t_Value;
+    uint32_t uint32_t_Value;
+    int8_t int8_t_Value;
+    int16_t int16_t_Value;
+    int32_t int32_t_Value;
+    float float_Value;
+
+} ValueHolder;
 
 struct rt_config_item
 {

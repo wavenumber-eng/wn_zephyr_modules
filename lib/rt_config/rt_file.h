@@ -16,6 +16,7 @@ extern "C" {
 void rt_file__init();
 int32_t rt_file__export();
 int32_t rt_file__import();
+void rt_file__wipe();
 
 #ifdef __cplusplus
 }

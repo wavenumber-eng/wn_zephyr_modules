@@ -168,3 +168,24 @@ int32_t rt_file__import()
 	fs_close(&conf_file);
 	return 0;
 }
+
+
+void rt_file__wipe()
+{
+	struct fs_file_t conf_file;
+	int rc = 0;
+
+	fs_file_t_init(&conf_file);
+
+	rc = fs_open(&conf_file, CONFIG_FILE_PATH, FS_O_CREATE | FS_O_WRITE | FS_O_TRUNC);
+	if (rc != 0)
+	{
+		LOG_ERR("Failed to open config file %s, error: %d", CONFIG_FILE_PATH, rc);
+		return;
+	}
+
+	fs_close(&conf_file);
+	LOG_INF("Wiped config file %s", CONFIG_FILE_PATH);
+}
+	
+
