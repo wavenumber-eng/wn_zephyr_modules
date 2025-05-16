@@ -9,10 +9,13 @@ if(CONFIG_RT_CONFIG)
 
     if(CONFIG_RT_CONFIG_USE_FILE)
         zephyr_library_sources(rt_file.c)
-    endif()
 
-    if(CONFIG_RT_CONFIG_USE_NVS)
+    elseif(CONFIG_RT_CONFIG_USE_NVS)
         zephyr_library_sources(rt_nvs.c)
+
+    else()
+        message(FATAL_ERROR "No valid storage method selected. Please select one of the following: CONFIG_RT_CONFIG_USE_FILE or CONFIG_RT_CONFIG_USE_NVS")
+    
     endif()
 
 endif()
