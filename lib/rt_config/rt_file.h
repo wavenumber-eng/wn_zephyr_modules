@@ -13,7 +13,16 @@ extern "C" {
 #endif
 
 
-void rt_file__init();
+typedef enum
+{
+    RT_RETURN_OK = 0,
+    RT_RETURN_NEW_FILE_CREATED = 1,
+    RT_RETURN_FILE_ERROR = 2,
+    RT_RETURN_NUMBER_OF_RETURN_CODES
+} rt_return_code_e;
+
+
+rt_return_code_e rt_file__init();
 int32_t rt_file__export();
 int32_t rt_file__import();
 void rt_file__wipe();

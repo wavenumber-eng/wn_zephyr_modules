@@ -14,8 +14,6 @@ config RT_CONFIG_USE_NVS
 
 config RT_CONFIG_USE_FILE
 	bool "RT Configurations stored in a file"
-#	select USB_DEVICE_STACK
-#	select USB_MASS_STORAGE
 	select FLASH
 	select FLASH_PAGE_LAYOUT
 	select FLASH_MAP
@@ -23,10 +21,12 @@ config RT_CONFIG_USE_FILE
 	select RT_CONFIG
 	select FAT_FILESYSTEM_ELM
 	select FS_FATFS_LFN
+	select USB_MASS_STORAGE
 	imply DISK_DRIVER_FLASH
-	imply FILE_SYSTEM
+	select FILE_SYSTEM
+	select FAT_FILESYSTEM_ELM
+	select FS_FATFS_LFN
 
-	
 	help
 	   RT Configurations stored in a file
 	   This option is used to store the RT Configurations in a file.

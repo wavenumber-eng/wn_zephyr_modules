@@ -248,15 +248,37 @@ void rt_config_load_defaults()
 
 int rt_config_init()
 {
+    int32_t rc = 0;
 #if defined(CONFIG_RT_CONFIG_USE_NVS)
     rt_config_load_defaults();
     rt_nvs__init();
     rt_nvs__load_values();
 
 #elif defined(CONFIG_RT_CONFIG_USE_FILE)
+
+    /*
+    RT_CONFIG file behavior:
+    - If RT_CONFIG_USE_FILE is defined, so we will use the file system to store the configuration.
+    - If the configuration file does exist, import the values from it.
+    - If it does not exist, create a new file with default values.
+    */
+
     rt_config_load_defaults();
-    rt_file__init();
-    rt_file__import();
+    rc = rt_file__init();
+
+    if( rc == RT_RETURN_OK)
+    {
+        rt_file__import();
+    }
+    else if (rc == RT_RETURN_NEW_FILE_CREATED)
+    {
+        rt_file__export();
+    }
+    else
+    {
+        LOG_ERR("Error opening config file, please check your configuration");
+    }
+
 #endif
 
     rt_config_show_current_values();

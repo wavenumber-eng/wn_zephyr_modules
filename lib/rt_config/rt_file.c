@@ -12,10 +12,13 @@ LOG_MODULE_REGISTER(rt_file, LOG_LEVEL_INF);
 #define CONFIG_FILE_NAME "rt_config.txt"
 #define CONFIG_FILE_PATH (mount_point  "/" CONFIG_FILE_NAME)
 
-void rt_file__init()
+
+// FILE SYSTEM SHOULD BE MOUNTED BEFORE THIS FUNCTION IS CALLED
+rt_return_code_e rt_file__init()
 {
 	struct fs_file_t conf_file;
 	int rc = 0;
+	rt_return_code_e return_code;
 
 	// Verify if a configuration file exists, if not create it
 	LOG_INF("Checking for config file %s", CONFIG_FILE_PATH);
@@ -29,6 +32,7 @@ void rt_file__init()
 		case 0:
 			LOG_INF("Config file %s exists\n\n", CONFIG_FILE_PATH);
 			fs_close(&conf_file);
+			return_code = RT_RETURN_OK;
 			break;
 
 		case (-ENOENT):
@@ -38,21 +42,28 @@ void rt_file__init()
 			{
 				LOG_INF("Config file %s created successfully\n\n", CONFIG_FILE_PATH);
 				fs_close(&conf_file);
+				return_code = RT_RETURN_NEW_FILE_CREATED;
 			}
 			else
 			{
 				LOG_ERR("Failed to create config file %s, error: %d\n\n", CONFIG_FILE_PATH, rc);
+				fs_close(&conf_file);
+				return_code = RT_RETURN_FILE_ERROR;
 			}
 			break;
 
 		case (-EINVAL):
 			LOG_ERR("Invalid file name for config file %s, error: %d\n\n", CONFIG_FILE_PATH, rc);
+			fs_close(&conf_file);
+			return_code = RT_RETURN_FILE_ERROR;
 			break;
 
 		default:
 			LOG_ERR("Error opening config file %s, error: %d\n\n", CONFIG_FILE_PATH, rc);
+			return_code = RT_RETURN_FILE_ERROR;
 			break;
 	}
+	return return_code;
 }
 
 
