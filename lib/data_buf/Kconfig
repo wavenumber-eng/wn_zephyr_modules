@@ -1,3 +1,8 @@
+module = DATA_BUG
+module-str = data_buf
+source "subsys/logging/Kconfig.template.log_config"
+
+
 config DATA_BUF
 	bool "Enable data buffers"
 	help
