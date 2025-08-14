@@ -1,3 +1,7 @@
+module = RT_CONFIG
+module-str = rt_config
+source "subsys/logging/Kconfig.template.log_config"
+
 config RT_CONFIG
 	bool "Enable RT configurations"
 	
