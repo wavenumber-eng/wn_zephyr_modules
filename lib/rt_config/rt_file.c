@@ -8,9 +8,8 @@
 LOG_MODULE_REGISTER(rt_file, LOG_LEVEL_INF);
 
 
-#define mount_point "/NAND:"
-#define CONFIG_FILE_NAME "rt_config.txt"
-#define CONFIG_FILE_PATH (mount_point  "/" CONFIG_FILE_NAME)
+
+#define CONFIG_FILE_PATH (CONFIG_RT_CONFIG_MOUNT_POINT"/"CONFIG_RT_CONFIG_FILE_NAME)
 
 
 // FILE SYSTEM SHOULD BE MOUNTED BEFORE THIS FUNCTION IS CALLED
@@ -199,4 +198,3 @@ void rt_file__wipe()
 	LOG_INF("Wiped config file %s", CONFIG_FILE_PATH);
 }
 	
-

@@ -34,3 +34,12 @@ config RT_CONFIG_USE_FILE
 	   RT Configurations stored in a file
 	   This option is used to store the RT Configurations in a file.
 	   The file is stored in the USB mass storage device
+
+config RT_CONFIG_FILE_NAME
+	string "File name for automatic RT config load"
+    default "rt_config.txt"
+
+
+config RT_CONFIG_MOUNT_POINT
+	string "fat fs mount point for the config file"
+    default "/NAND:"
