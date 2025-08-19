@@ -281,7 +281,7 @@ int rt_config_init()
 
 #endif
 
-    rt_config_show_current_values();
+    //rt_config_show_current_values();
     
     return 0;
 }
@@ -367,6 +367,8 @@ void get_single(const struct shell *shell, char *Param)
     shell_fprintf(shell, SHELL_NORMAL,  "    Max : %s\r\n", ci->Maximum);
     shell_fprintf(shell, SHELL_NORMAL,  "    Default : %s\r\n", ci->Default);
 
+    shell_fprintf(shell, SHELL_NORMAL,  "Access Level : %s\r\n", (ci->access_level == RT_CONFIG_LEVEL__USER) ? "User" : "Admin");
+
 }
 
 void get_all(const struct shell *shell)
@@ -398,6 +400,8 @@ void get_all(const struct shell *shell)
         shell_fprintf(shell, SHELL_NORMAL,  "    Min : %s\r\n", ci->Minimum);
         shell_fprintf(shell, SHELL_NORMAL,  "    Max : %s\r\n", ci->Maximum);
         shell_fprintf(shell, SHELL_NORMAL,  "    Default : %s\r\n", ci->Default);
+
+        shell_fprintf(shell, SHELL_NORMAL,  "    Access Level : %s\r\n", (ci->access_level == RT_CONFIG_LEVEL__USER) ? "User" : "Admin");
 
     }
 
@@ -485,3 +489,28 @@ int save_handler(const struct shell *shell, int32_t argc, char **argv)
 }
 
 SHELL_CMD_REGISTER(save, NULL, "saves the current runtime config", save_handler);
+
+
+
+
+uint8_t rt_config__is_integer_config(struct rt_config_item *ci)
+{
+    if (ci == NULL || ci->Value == NULL)
+    {
+        return 0;
+    }
+
+    switch (ci->DataType)
+    {
+    case RT_CONFIG_DATA_TYPE_UINT8:
+    case RT_CONFIG_DATA_TYPE_UINT16:
+    case RT_CONFIG_DATA_TYPE_UINT32:
+    case RT_CONFIG_DATA_TYPE_INT8:
+    case RT_CONFIG_DATA_TYPE_INT16:
+    case RT_CONFIG_DATA_TYPE_INT32:
+        return 1;
+
+    default:
+        return 0;
+    }
+}

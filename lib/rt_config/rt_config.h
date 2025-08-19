@@ -21,8 +21,13 @@ typedef union
     int16_t int16_t_Value;
     int32_t int32_t_Value;
     float float_Value;
-
 } ValueHolder;
+
+typedef enum
+{
+    RT_CONFIG_LEVEL__USER,
+    RT_CONFIG_LEVEL__ADMIN,
+} rt_config_level_e;
 
 struct rt_config_item
 {
@@ -34,10 +39,11 @@ struct rt_config_item
     char *Minimum;
     char *Maximum;
     char *Default;
+    rt_config_level_e access_level;   
 };
 
 
-#define Z_CONFIG_ITEM_INITIALIZER(name,description_string,value,data_type,data_type_max_length,minimum,maximum,default) \
+#define Z_CONFIG_ITEM_INITIALIZER(name,description_string,value,data_type,data_type_max_length,minimum,maximum,default,var_access_level) \
 	{ \
 	.ConfigItemName = Z_STRINGIFY(name), \
 	.DescriptionString = description_string,\
@@ -47,12 +53,13 @@ struct rt_config_item
     .Minimum = minimum,\
     .Maximum = maximum,\
     .Default = default,\
+    .access_level = var_access_level,\
     }
 
 
-#define RT_CONFIG_ITEM(name,description_string,value,data_type,data_type_max_length,minimum,maximum,default) \
+#define RT_CONFIG_ITEM(name,description_string,value,data_type,data_type_max_length,minimum,maximum,default,var_access_level) \
 	STRUCT_SECTION_ITERABLE(rt_config_item, name) = \
-		Z_CONFIG_ITEM_INITIALIZER(name,description_string,value,data_type,data_type_max_length,minimum,maximum,default)
+		Z_CONFIG_ITEM_INITIALIZER(name,description_string,value,data_type,data_type_max_length,minimum,maximum,default,var_access_level)
 
 
 
@@ -82,5 +89,8 @@ void rt_config_export();
 struct rt_config_item * rt_config_get_config_item(char * Name);
 bool rt_config_get_value_string(struct rt_config_item *ci, char *ValueString, uint32_t Len);
 int32_t rt_config_load_with_value(const struct rt_config_item *NextConfigurationItem,void *value);
+
+
+uint8_t rt_config__is_integer_config(struct rt_config_item *ci);
 
 #endif

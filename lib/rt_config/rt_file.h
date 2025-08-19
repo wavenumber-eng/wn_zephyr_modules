@@ -13,6 +13,13 @@ extern "C" {
 #endif
 
 
+typedef struct
+{
+    struct rt_config_item *ci;
+    uint8_t in_file;
+} config_status_t;
+
+
 typedef enum
 {
     RT_RETURN_OK = 0,
@@ -26,6 +33,12 @@ rt_return_code_e rt_file__init();
 int32_t rt_file__export();
 int32_t rt_file__import();
 void rt_file__wipe();
+int8_t rt_file__repair();
+
+uint8_t rt_file__get_item_in_file(struct rt_config_item *ci);
+void rt_file__set_item_in_file(struct rt_config_item *ci, uint8_t in_file);
+uint8_t is_numeric_string(char *str, uint32_t length);
+
 
 #ifdef __cplusplus
 }
