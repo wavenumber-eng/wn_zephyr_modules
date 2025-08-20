@@ -110,7 +110,7 @@ int32_t rt_file__export()
 			snprintf(ValueString, CONFIG_MAX_VALUE_STRING_LENGTH, "# ---------------------------------------\n");
 			fs_write(&conf_file, ValueString, strlen(ValueString));
 
-			snprintf(ValueString, CONFIG_MAX_VALUE_STRING_LENGTH, "# Configuration: %s\n", config_item->ConfigItemName);
+			snprintf(ValueString, CONFIG_MAX_VALUE_STRING_LENGTH, "# Setting: %s\n", config_item->ConfigItemName);
 			fs_write(&conf_file, ValueString, strlen(ValueString));
 
 			// rt-config description
@@ -122,11 +122,12 @@ int32_t rt_file__export()
 			fs_write(&conf_file, ValueString, strlen(ValueString));
 
 			// rt-config max value
-			snprintf(ValueString, CONFIG_MAX_VALUE_STRING_LENGTH, "# Max Value: %s\n", config_item->Maximum);
+			snprintf(ValueString, CONFIG_MAX_VALUE_STRING_LENGTH, "# Max Value: %s\n\n", config_item->Maximum);
 			fs_write(&conf_file, ValueString, strlen(ValueString));
 
 			rt_config_get_value_string(config_item, ValueString, CONFIG_MAX_VALUE_STRING_LENGTH);
-			fs_write(&conf_file, config_item->ConfigItemName, strlen(config_item->ConfigItemName));
+	
+            fs_write(&conf_file, config_item->ConfigItemName, strlen(config_item->ConfigItemName));
 			fs_write(&conf_file, "=", 1);
 			fs_write(&conf_file, ValueString, strlen(ValueString));
 			fs_write(&conf_file, "\n\n", 2);
