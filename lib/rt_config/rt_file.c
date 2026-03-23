@@ -480,18 +480,31 @@ void rt_file__wipe()
 uint8_t is_numeric_string(char *str, uint32_t length)
 {
 	uint32_t i = 0;
+	uint8_t has_dot = 0;
 
-	if (str == NULL || *str == '\0')
+	if (str == NULL || *str == '\0' || length == 0)
 	{
 		return 0;
 	}
 
 	for (i = 0; i < length; i++)
 	{
-		if((str[i] < '0') || (str[i] > '9'))
+		if (str[i] >= '0' && str[i] <= '9')
 		{
-			return 0;
+			continue;
 		}
+		/* Allow leading minus sign */
+		if (str[i] == '-' && i == 0)
+		{
+			continue;
+		}
+		/* Allow a single decimal point (for floats) */
+		if (str[i] == '.' && !has_dot)
+		{
+			has_dot = 1;
+			continue;
+		}
+		return 0;
 	}
 
 	return 1;
