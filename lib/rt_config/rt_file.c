@@ -170,20 +170,24 @@ int32_t rt_file__export()
 }
 
 // Function to read a line from the file
-// Returns the number of characters read
-uint32_t rt_file__read_line(struct fs_file_t *conf_file, char *line, uint32_t max_length)
+// Returns characters read, 0 on EOF, or a negative error code.
+static int32_t rt_file__read_line(struct fs_file_t *conf_file, char *line, uint32_t max_length)
 {
 	int32_t i = 0;
-	char c;
 
 	while(i < (max_length - 1))
 	{
-		// Read a character from the file
-		c = fs_read(conf_file, &line[i], 1);
+		int32_t rc = fs_read(conf_file, &line[i], 1);
 
-		if (c <= 0)
+		if (rc == 0)
 		{
-			break; // End of file or error
+			break; // End of file
+		}
+
+		if (rc < 0)
+		{
+			line[0] = '\0';
+			return rc;
 		}
 
 		if (line[i] == '\n')
@@ -249,7 +253,7 @@ int32_t rt_file__verify_file()
 {
 	struct fs_file_t conf_file;
 	char line[CONFIG_MAX_VALUE_STRING_LENGTH];
-	uint32_t line_length;
+	int32_t line_length;
 	char *key;
 	char *value;
 	uint32_t missing_items = 0;
@@ -271,6 +275,16 @@ int32_t rt_file__verify_file()
 	{
 		line_length = rt_file__read_line(&conf_file, line, sizeof(line));
 
+		if (line_length < 0)
+		{
+			fs_close(&conf_file);
+			LOG_WRN("Config file read failed (%d), regenerating %s from defaults",
+				line_length, CONFIG_FILE_PATH);
+			rt_file__wipe();
+			rt_file__export();
+			return line_length;
+		}
+
 		// End of file 
 		if (line_length == 0)
 		{
@@ -285,7 +299,7 @@ int32_t rt_file__verify_file()
 
 
 		key = strtok(line, "=");
-		value = strtok(NULL, "\n");
+		value = strtok(NULL, "\r\n");
 
 		if(key && value)
 		{
@@ -339,7 +353,7 @@ int8_t rt_file__repair()
 
 	uint32_t i_damaged_line = 0;
 	uint32_t i_line = 1;
-	uint32_t read_bytes;
+	int32_t read_bytes = 1;
 	int err;
 
 	// Create temp file
@@ -409,7 +423,7 @@ int32_t rt_file__import()
 //	struct rt_config_item *ci = NULL;
 
 
-	rt_file__verify_file();
+	return rt_file__verify_file();
 
 //	fs_file_t_init(&conf_file);
 //
@@ -486,7 +500,16 @@ uint8_t is_numeric_string(char *str, uint32_t length)
 		return 0;
 	}
 
-	for (i = 0; i < length; i++)
+	if (str[0] == '-' || str[0] == '+')
+	{
+		if (length == 1)
+		{
+			return 0;
+		}
+		i = 1;
+	}
+
+	for (; i < length; i++)
 	{
 		if((str[i] < '0') || (str[i] > '9'))
 		{

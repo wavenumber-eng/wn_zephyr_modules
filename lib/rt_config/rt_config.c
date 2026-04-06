@@ -268,7 +268,11 @@ int rt_config_init()
 
     if( rc == RT_RETURN_OK)
     {
-        rt_file__import();
+        rc = rt_file__import();
+        if (rc < 0)
+        {
+            LOG_WRN("Config import failed (%d), using defaults", rc);
+        }
     }
     else if (rc == RT_RETURN_NEW_FILE_CREATED)
     {
@@ -283,7 +287,7 @@ int rt_config_init()
 
     //rt_config_show_current_values();
     
-    return 0;
+    return rc < 0 ? rc : 0;
 }
 
 #if defined(CONFIG_RT_CONFIG_USE_NVS)
