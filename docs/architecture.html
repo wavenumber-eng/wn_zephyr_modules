@@ -1,0 +1,22 @@
+# Architecture
+
+`wn_zephyr_modules` contains reusable Wavenumber Zephyr modules that are shared
+across application workspaces.
+
+## Boundaries
+
+- `lib/rt_config` owns runtime setting registration, shell access, import, and
+  export of typed configuration values.
+- Applications own their setting definitions, storage devices, mount points, and
+  policy decisions such as whether exported files include human-readable comment
+  blocks.
+- Zephyr and board-specific storage drivers remain external dependencies. The
+  module should use Zephyr filesystem and kernel APIs rather than reaching into
+  driver internals.
+
+## Compatibility
+
+Shared module changes must preserve existing application behavior by default
+unless a versioned release note and application opt-in describe the change.
+For `rt_config`, commented exports remain the default and compact exports are
+selected by Kconfig.

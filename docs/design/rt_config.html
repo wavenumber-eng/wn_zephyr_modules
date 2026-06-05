@@ -1,0 +1,50 @@
+# rt_config Design
+
+`rt_config` provides a small runtime-configuration layer for Zephyr
+applications. Applications define `RT_CONFIG_ITEM` records, and the module
+registers shell commands for reading, updating, importing, and exporting those
+values.
+
+## File Export
+
+The filesystem backend rewrites the configured export file when
+`rt_config_export()` runs. That keeps import simple and deterministic, but large
+applications can pay a meaningful cost when the exported file is verbose or when
+the filesystem receives many tiny writes.
+
+The 2026-06-05 exporter keeps the original commented format as the default:
+
+```text
+CONFIG_RT_CONFIG_FILE_EXPORT_COMMENTS=y
+```
+
+Applications that need smaller and faster files can opt into compact
+`name=value` export:
+
+```text
+CONFIG_RT_CONFIG_FILE_EXPORT_COMMENTS=n
+```
+
+Import ignores comments and blank lines, so both formats remain import
+compatible.
+
+## Write Coalescing
+
+Each item is staged into a bounded export buffer before it is written to the
+filesystem. This reduces `fs_write()` call count while keeping memory use
+explicit:
+
+```text
+CONFIG_RT_CONFIG_FILE_EXPORT_BUFFER_SIZE=1024
+```
+
+The exporter holds a mutex while rewriting the file, checks partial writes, and
+reports `fs_close()` failures. Applications should still treat `save` as a
+filesystem operation that can fail.
+
+## Application Policy
+
+Applications with small configuration files can keep comments enabled for
+readability. Applications with large setting sets or erase-sensitive external
+flash should prefer compact export and maintain human-readable setting
+documentation separately.

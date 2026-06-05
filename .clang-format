@@ -12,6 +12,8 @@ ColumnLimit: 100
 IndentCaseLabels: true
 IndentCaseBlocks: true
 PointerAlignment: Left
+SortIncludes: true
+IncludeBlocks: Preserve
 SpaceAfterCStyleCast: false
 SpaceBeforeParens: ControlStatements
 AlignConsecutiveAssignments: true
