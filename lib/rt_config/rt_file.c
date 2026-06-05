@@ -1,7 +1,10 @@
 #include "rt_file.h"
 #include "rt_config.h"
+#include <errno.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define STORAGE_PARTITION			storage_partition
 #define STORAGE_PARTITION_ID		FIXED_PARTITION_ID(STORAGE_PARTITION)
@@ -15,6 +18,9 @@ LOG_MODULE_REGISTER(rt_file, LOG_LEVEL_INF);
 #define CONFIG_FILE_PATH (CONFIG_RT_CONFIG_MOUNT_POINT CONFIG_RT_CONFIG_FILE_NAME)
 #define TEMP_FILE_NAME		"temp.txt"
 #define TEMP_FILE_PATH		(CONFIG_RT_CONFIG_MOUNT_POINT TEMP_FILE_NAME)
+
+K_MUTEX_DEFINE(rt_file_export_mutex);
+static char export_record_buffer[CONFIG_RT_CONFIG_FILE_EXPORT_BUFFER_SIZE];
 
 // FILE SYSTEM SHOULD BE MOUNTED BEFORE THIS FUNCTION IS CALLED
 rt_return_code_e rt_file__init()
@@ -80,18 +86,142 @@ rt_return_code_e rt_file__init()
 }
 
 
+static int32_t rt_file__write_all(struct fs_file_t *file, const char *data, size_t length)
+{
+	size_t written = 0;
+
+	while(written < length)
+	{
+		ssize_t rc = fs_write(file, &data[written], length - written);
+
+		if(rc < 0)
+		{
+			return rc;
+		}
+
+		if(rc == 0)
+		{
+			return -EIO;
+		}
+
+		written += rc;
+	}
+
+	return 0;
+}
+
+static int32_t rt_file__appendf(char *buffer, size_t buffer_size, size_t *offset, const char *format, ...)
+{
+	va_list args;
+	int length;
+
+	if(*offset >= buffer_size)
+	{
+		return -ENOSPC;
+	}
+
+	va_start(args, format);
+	length = vsnprintf(&buffer[*offset], buffer_size - *offset, format, args);
+	va_end(args);
+
+	if(length < 0)
+	{
+		return length;
+	}
+
+	if((size_t)length >= (buffer_size - *offset))
+	{
+		return -ENOSPC;
+	}
+
+	*offset += length;
+	return 0;
+}
+
+static bool rt_file__value_overwritten(struct rt_config_item *config_item, const char *value_string)
+{
+	if(config_item->DataType == RT_CONFIG_DATA_TYPE_FLOAT32)
+	{
+		float float_default = atof(config_item->Default);
+		float float_value = atof(value_string);
+		return (float_value != float_default);
+	}
+
+	return (strcmp(value_string, config_item->Default) != 0);
+}
+
+static int32_t rt_file__write_config_value(struct fs_file_t *file,
+					   struct rt_config_item *config_item,
+					   const char *value_string,
+					   bool include_comments)
+{
+	size_t offset = 0;
+	int32_t rc;
+
+	if(include_comments)
+	{
+		rc = rt_file__appendf(export_record_buffer, sizeof(export_record_buffer), &offset,
+				      "# ---------------------------------------\n");
+		if(rc < 0)
+		{
+			return rc;
+		}
+
+		rc = rt_file__appendf(export_record_buffer, sizeof(export_record_buffer), &offset,
+				      "# Setting: %s\n", config_item->ConfigItemName);
+		if(rc < 0)
+		{
+			return rc;
+		}
+
+		rc = rt_file__appendf(export_record_buffer, sizeof(export_record_buffer), &offset,
+				      "# Description: %s\n", config_item->DescriptionString);
+		if(rc < 0)
+		{
+			return rc;
+		}
+
+		rc = rt_file__appendf(export_record_buffer, sizeof(export_record_buffer), &offset,
+				      "# Min Value: %s\n", config_item->Minimum);
+		if(rc < 0)
+		{
+			return rc;
+		}
+
+		rc = rt_file__appendf(export_record_buffer, sizeof(export_record_buffer), &offset,
+				      "# Max Value: %s\n\n", config_item->Maximum);
+		if(rc < 0)
+		{
+			return rc;
+		}
+	}
+
+	rc = rt_file__appendf(export_record_buffer, sizeof(export_record_buffer), &offset,
+			      "%s=%s\n\n", config_item->ConfigItemName, value_string);
+	if(rc < 0)
+	{
+		return rc;
+	}
+
+	return rt_file__write_all(file, export_record_buffer, offset);
+}
+
 int32_t rt_file__export()
 {
 	struct fs_file_t conf_file;
 	char ValueString[CONFIG_MAX_VALUE_STRING_LENGTH];
+	int32_t rc = 0;
 
 	fs_file_t_init(&conf_file);
+	k_mutex_lock(&rt_file_export_mutex, K_FOREVER);
 	
 	// if the file exists, delete the content
-	if(fs_open(&conf_file, CONFIG_FILE_PATH, FS_O_CREATE | FS_O_WRITE | FS_O_TRUNC) != 0)
+	rc = fs_open(&conf_file, CONFIG_FILE_PATH, FS_O_CREATE | FS_O_WRITE | FS_O_TRUNC);
+	if(rc != 0)
 	{
-		LOG_INF("Could not open file for writing");
-		return -1;
+		LOG_ERR("Could not open file %s for writing, error: %d", CONFIG_FILE_PATH, rc);
+		k_mutex_unlock(&rt_file_export_mutex);
+		return rc;
 	}
 
 	LOG_INF("Exporting configuration to %s", CONFIG_FILE_PATH);
@@ -106,67 +236,57 @@ int32_t rt_file__export()
 		// Only include in the rt_config file the user-accessible items
 		if(config_item->access_level == RT_CONFIG_LEVEL__USER)
 		{
-			// rt-config header
-			snprintf(ValueString, CONFIG_MAX_VALUE_STRING_LENGTH, "# ---------------------------------------\n");
-			fs_write(&conf_file, ValueString, strlen(ValueString));
-
-			snprintf(ValueString, CONFIG_MAX_VALUE_STRING_LENGTH, "# Setting: %s\n", config_item->ConfigItemName);
-			fs_write(&conf_file, ValueString, strlen(ValueString));
-
-			// rt-config description
-			snprintf(ValueString, CONFIG_MAX_VALUE_STRING_LENGTH, "# Description: %s\n", config_item->DescriptionString);
-			fs_write(&conf_file, ValueString, strlen(ValueString));
-
-			// rt-config min value
-			snprintf(ValueString, CONFIG_MAX_VALUE_STRING_LENGTH, "# Min Value: %s\n", config_item->Minimum);
-			fs_write(&conf_file, ValueString, strlen(ValueString));
-
-			// rt-config max value
-			snprintf(ValueString, CONFIG_MAX_VALUE_STRING_LENGTH, "# Max Value: %s\n\n", config_item->Maximum);
-			fs_write(&conf_file, ValueString, strlen(ValueString));
-
-			rt_config_get_value_string(config_item, ValueString, CONFIG_MAX_VALUE_STRING_LENGTH);
+			if(!rt_config_get_value_string(config_item, ValueString, CONFIG_MAX_VALUE_STRING_LENGTH))
+			{
+				LOG_ERR("Failed to format config item %s", config_item->ConfigItemName);
+				rc = -EINVAL;
+				break;
+			}
 	
-            fs_write(&conf_file, config_item->ConfigItemName, strlen(config_item->ConfigItemName));
-			fs_write(&conf_file, "=", 1);
-			fs_write(&conf_file, ValueString, strlen(ValueString));
-			fs_write(&conf_file, "\n\n", 2);
+			rc = rt_file__write_config_value(&conf_file, config_item, ValueString,
+							 IS_ENABLED(CONFIG_RT_CONFIG_FILE_EXPORT_COMMENTS));
+			if(rc < 0)
+			{
+				LOG_ERR("Failed to write config item %s, error: %d",
+					config_item->ConfigItemName, rc);
+				break;
+			}
 
-			LOG_INF("- %s=%s", config_item->ConfigItemName, ValueString);
+			LOG_DBG("- %s=%s", config_item->ConfigItemName, ValueString);
 		}
 
 		// Admin accessible items
 		else
 		{
-			uint8_t value_overwritten = 0;
-
-			rt_config_get_value_string(config_item, ValueString, CONFIG_MAX_VALUE_STRING_LENGTH);
-
-			if(config_item->DataType == RT_CONFIG_DATA_TYPE_FLOAT32)
+			if(!rt_config_get_value_string(config_item, ValueString, CONFIG_MAX_VALUE_STRING_LENGTH))
 			{
-				float float_default = atof(config_item->Default);
-				float float_value = atof(ValueString);
-				value_overwritten = (float_value != float_default);
+				LOG_ERR("Failed to format config item %s", config_item->ConfigItemName);
+				rc = -EINVAL;
+				break;
 			}
-			else
-			{
-				value_overwritten = (strcmp(ValueString, config_item->Default) != 0);
-			}
-			
 
-			if(value_overwritten)
+			if(rt_file__value_overwritten(config_item, ValueString))
 			{
-				rt_config_get_value_string(config_item, ValueString, CONFIG_MAX_VALUE_STRING_LENGTH);
-				fs_write(&conf_file, config_item->ConfigItemName, strlen(config_item->ConfigItemName));
-				fs_write(&conf_file, "=", 1);
-				fs_write(&conf_file, ValueString, strlen(ValueString));
-				fs_write(&conf_file, "\n\n", 2);
+				rc = rt_file__write_config_value(&conf_file, config_item, ValueString, false);
+				if(rc < 0)
+				{
+					LOG_ERR("Failed to write config item %s, error: %d",
+						config_item->ConfigItemName, rc);
+					break;
+				}
 			}
 		}
     }
 
-	fs_close(&conf_file);
-	return 0;
+	int close_rc = fs_close(&conf_file);
+	if(close_rc < 0 && rc == 0)
+	{
+		LOG_ERR("Failed to close config file %s, error: %d", CONFIG_FILE_PATH, close_rc);
+		rc = close_rc;
+	}
+
+	k_mutex_unlock(&rt_file_export_mutex);
+	return rc;
 }
 
 // Function to read a line from the file

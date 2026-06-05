@@ -35,6 +35,24 @@ config RT_CONFIG_USE_FILE
 	   This option is used to store the RT Configurations in a file.
 	   The file is stored in the USB mass storage device
 
+config RT_CONFIG_FILE_EXPORT_COMMENTS
+	bool "Export comment blocks in RT configuration file"
+	default y
+	depends on RT_CONFIG_USE_FILE
+	help
+	   Include human-readable setting, description, minimum, and maximum
+	   comment lines in the exported RT configuration file. Disable this
+	   for a compact name=value file while preserving the same import format.
+
+config RT_CONFIG_FILE_EXPORT_BUFFER_SIZE
+	int "RT configuration file export staging buffer size"
+	default 1024
+	range 256 4096
+	depends on RT_CONFIG_USE_FILE
+	help
+	   Staging buffer size used to coalesce per-item export text into fewer
+	   filesystem writes.
+
 config RT_CONFIG_FILE_NAME
 	string "File name for automatic RT config load"
     default "rt_config.txt"

@@ -4,6 +4,10 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 #define CONFIG_MAX_VALUE_STRING_LENGTH      256
 #define CONFIG_RT_MAX_ITEMS                 64
@@ -92,5 +96,9 @@ int32_t rt_config_load_with_value(const struct rt_config_item *NextConfiguration
 
 
 uint8_t rt_config__is_integer_config(struct rt_config_item *ci);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
