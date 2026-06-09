@@ -75,8 +75,18 @@ rt_return_code_e rt_file__init()
 
 	uint32_t item = 0;
 
+	memset(config_status_table, 0, sizeof(config_status_table));
+	memset(damaged_lines, 0, sizeof(damaged_lines));
+
 	STRUCT_SECTION_FOREACH(rt_config_item, ci)
 	{
+		if(item >= CONFIG_RT_MAX_ITEMS)
+		{
+			LOG_ERR("Too many RT config items: limit is %d. Increase CONFIG_RT_MAX_ITEMS.",
+				CONFIG_RT_MAX_ITEMS);
+			return RT_RETURN_FILE_ERROR;
+		}
+
 		config_status_table[item].ci = ci;
 		config_status_table[item].in_file = 0;
 		item++;

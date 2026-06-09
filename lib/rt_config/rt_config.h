@@ -10,7 +10,9 @@ extern "C" {
 
 
 #define CONFIG_MAX_VALUE_STRING_LENGTH      256
+#ifndef CONFIG_RT_MAX_ITEMS
 #define CONFIG_RT_MAX_ITEMS                 64
+#endif
 #define CONFIG_RT_ITEM_BASE                 0x9000
 
 #define CONFIG_RT_KEY_VALUE_MAX_LENGTH      256

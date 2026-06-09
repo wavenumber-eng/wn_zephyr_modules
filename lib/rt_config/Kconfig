@@ -4,6 +4,25 @@ source "subsys/logging/Kconfig.template.log_config"
 
 config RT_CONFIG
 	bool "Enable RT configurations"
+
+config RT_MAX_ITEMS
+	int "Maximum number of runtime configuration items"
+	default 64
+	range 1 512
+	depends on RT_CONFIG
+	help
+	   Maximum number of RT_CONFIG_ITEM entries the module tracks in its
+	   per-item status tables. Increase this when an application defines more
+	   than 64 settings.
+
+config RT_CONFIG_VALIDATE_ITEM_COUNT
+	bool "Validate RT_CONFIG_ITEM count at build time"
+	default y
+	depends on RT_CONFIG
+	help
+	   Fail the build after linking if the number of linked RT_CONFIG_ITEM
+	   entries exceeds CONFIG_RT_MAX_ITEMS. This catches table-size mistakes
+	   before firmware boots.
 	
 
 config RT_CONFIG_USE_NVS

@@ -19,4 +19,20 @@ if(CONFIG_RT_CONFIG)
     
     endif()
 
+    if(CONFIG_RT_CONFIG_VALIDATE_ITEM_COUNT)
+        set(rt_config_kernel_elf_name zephyr.elf)
+        if(KERNEL_ELF_NAME)
+            set(rt_config_kernel_elf_name ${KERNEL_ELF_NAME})
+        endif()
+
+        set_property(GLOBAL APPEND PROPERTY extra_post_build_commands
+            COMMAND
+            ${PYTHON_EXECUTABLE}
+            ${CMAKE_CURRENT_LIST_DIR}/check_rt_config_item_count.py
+            --elf ${rt_config_kernel_elf_name}
+            --nm ${CMAKE_NM}
+            --max-items ${CONFIG_RT_MAX_ITEMS}
+        )
+    endif()
+
 endif()
